@@ -21,9 +21,7 @@ if (!preg_match("/Bearer\s+(.*)$/i", $authHeader, $matches)) {
 $userToken = $matches[1];
 
 try {
-    $pdo = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4", DB_USER, DB_PASS, [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
-    ]);
+    $pdo = createPdoUtf8();
     $stmt = $pdo->prepare("SELECT user_id FROM user_sessions WHERE token = ?");
     $stmt->execute([$userToken]);
     $row = $stmt->fetch(PDO::FETCH_ASSOC);

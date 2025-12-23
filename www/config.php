@@ -42,4 +42,26 @@ define('DB_USER', $db_user);
 define('DB_PASS', $db_pass);
 define('GRAFANA_URL', $grafana_url);
 define('GRAFANA_TOKEN', $grafana_token);
+
+/**
+ * Создает PDO с явной установкой UTF-8/utf8mb4, чтобы кириллица не искажалась.
+ */
+function createPdoUtf8()
+{
+    $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4";
+    $options = [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
+    ];
+
+    $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+    // Дополнительно фиксируем кодировку соединения на случай строгих настроек сервера.
+    $pdo->exec("SET NAMES utf8mb4");
+    $pdo->exec("SET CHARACTER SET utf8mb4");
+    $pdo->exec("SET collation_connection = 'utf8mb4_unicode_ci'");
+    return $pdo;
+}
+
+// Явно устанавливаем внутреннюю кодировку PHP.
+mb_internal_encoding("UTF-8");
 ?>
