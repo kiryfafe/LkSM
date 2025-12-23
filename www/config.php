@@ -50,9 +50,13 @@ function createPdoUtf8()
 {
     $dsn = "mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";charset=utf8mb4";
     $options = [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci"
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION
     ];
+
+    // Если доступна опция и драйвер, передадим INIT_COMMAND (не во всех сборках есть MYSQL_ATTR_INIT_COMMAND).
+    if (defined('PDO::MYSQL_ATTR_INIT_COMMAND')) {
+        $options[PDO::MYSQL_ATTR_INIT_COMMAND] = "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci";
+    }
 
     $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
     // Дополнительно фиксируем кодировку соединения на случай строгих настроек сервера.
@@ -62,6 +66,8 @@ function createPdoUtf8()
     return $pdo;
 }
 
-// Явно устанавливаем внутреннюю кодировку PHP.
-mb_internal_encoding("UTF-8");
+// Явно устанавливаем внутреннюю кодировку PHP, если доступно расширение mbstring.
+if (function_exists('mb_internal_encoding')) {
+    mb_internal_encoding("UTF-8");
+}
 ?>
