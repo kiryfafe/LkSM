@@ -37,9 +37,11 @@ if (!$user) {
     exit;
 }
 
-// ==================== ЗАГРУЗКА ЗАВЕДЕНИЙ ИЗ PYRUS ====================
+$filterRestaurant = isset($_GET['restaurant']) ? trim($_GET['restaurant']) : '';
+
+// ==================== ЗАГРУЗКА ТАБЛИЦЫ ЗАДАЧ ИЗ PYRUS ====================
 try {
-    $register = pyrusFetchRegister(1310341);
+    $register = pyrusFetchRegister(1463678);
 } catch (Exception $e) {
     http_response_code(500);
     echo json_encode(["success" => false, "error" => "Pyrus fetch error: " . $e->getMessage()]);
@@ -54,42 +56,36 @@ if (!$restaurantColId) {
     exit;
 }
 
-// Список ресторанов из профиля пользователя
-$allowedNames = [];
-if (!empty($user["network"])) {
-    $parts = preg_split('/[,\\n]+/', $user["network"]);
-    foreach ($parts as $p) {
-        $p = trim($p);
-        if ($p !== '') {
-            $allowedNames[] = $p;
-        }
-    }
-}
-
-// Если ничего не указано в профиле, вернем пусто
-if (empty($allowedNames)) {
-    echo json_encode(["success" => true, "restaurants" => []], JSON_UNESCAPED_UNICODE);
-    exit;
-}
-
-$restaurants = [];
+$tasks = [];
 $rows = $register['rows'] ?? [];
 foreach ($rows as $row) {
     $assoc = pyrusRowToAssoc($row, $columnMap);
     $name = isset($assoc['Ресторан']) ? trim($assoc['Ресторан']) : '';
-    if ($name === '') {
+    if ($filterRestaurant !== '' && strcasecmp($filterRestaurant, $name) !== 0) {
         continue;
     }
-    foreach ($allowedNames as $needle) {
-        if (strcasecmp($needle, $name) === 0) {
-            $restaurants[] = [
-                "id" => $row['id'] ?? ($row['task_id'] ?? uniqid('rest_')),
-                "name" => $name
-            ];
-            // Не break — нужны все строки с совпадающим названием
+
+    // Берем первую непустую строковую ячейку как заголовок.
+    $title = '';
+    foreach ($assoc as $colName => $value) {
+        if ($colName === 'Ресторан') {
+            continue;
+        }
+        if (is_string($value) && trim($value) !== '') {
+            $title = trim($value);
+            break;
         }
     }
+
+    $tasks[] = [
+        "id" => $row['id'] ?? ($row['task_id'] ?? uniqid('task_')),
+        "task_id" => $row['task_id'] ?? null,
+        "restaurant" => $name,
+        "title" => $title,
+        "fields" => $assoc
+    ];
 }
 
-echo json_encode(["success" => true, "restaurants" => $restaurants], JSON_UNESCAPED_UNICODE);
+echo json_encode(["success" => true, "tasks" => $tasks], JSON_UNESCAPED_UNICODE);
 ?>
+

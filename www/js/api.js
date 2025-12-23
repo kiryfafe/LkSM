@@ -26,6 +26,18 @@ const API = {
       body: JSON.stringify(data)
     });
   },
+  // ==================== PYRUS ====================
+  async getPyrusRestaurants() {
+    return this.makeRequest("/api/restaurants.php", {
+      headers: { "Authorization": `Bearer ${Auth.getToken()}` }
+    });
+  },
+  async getPyrusTasks(restaurant = "") {
+    const qs = restaurant ? `?restaurant=${encodeURIComponent(restaurant)}` : "";
+    return this.makeRequest(`/api/pyrus_tasks.php${qs}`, {
+      headers: { "Authorization": `Bearer ${Auth.getToken()}` }
+    });
+  },
   // ==================== ЗАЯВКИ ====================
   async getRequests(userId) {
     return this.makeRequest(`/api/requests.php?userId=${userId}`, {

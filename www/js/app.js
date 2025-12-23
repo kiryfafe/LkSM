@@ -45,15 +45,23 @@ document.addEventListener("DOMContentLoaded", async () => {
   try {
     const dropdown = document.getElementById("main-dropdown");
     const estList = document.querySelector(".establishment-list");
-    const resp = await API.getApprovedRestaurants(user.id);
+    const resp = await API.getPyrusRestaurants();
     if (!resp.success) throw new Error("Failed to load restaurants");
 
     const restaurants = resp.restaurants || [];
+    const filterSelect = document.getElementById("filter-establishment");
+
     restaurants.forEach(r => {
       const opt = document.createElement("option");
       opt.value = r.id;
       opt.textContent = r.name;
       dropdown.appendChild(opt);
+      if (filterSelect) {
+        const fopt = document.createElement("option");
+        fopt.value = r.name;
+        fopt.textContent = r.name;
+        filterSelect.appendChild(fopt);
+      }
       if (estList) {
         const btn = document.createElement("button");
         btn.className = "establishment-item btn-RestModal";
@@ -73,29 +81,57 @@ document.addEventListener("DOMContentLoaded", async () => {
     alert("Ошибка загрузки заведений: " + e.message);
   }
 
-  /* ==================== ЗАЯВКИ ==================== */
-  try {
-    const tbody = document.getElementById("requests-table-body");
-    const res = await API.getRequests(user.id);
-    if (!res.success) throw new Error("Failed to load requests");
+  /* ==================== ЗАДАЧИ ИЗ PYRUS ==================== */
+  async function loadTasks(selectedRestaurant = "") {
+    try {
+      const tbody = document.getElementById("requests-table-body");
+      if (tbody) tbody.innerHTML = "";
 
-    const list = res.requests || [];
-    list.forEach(req => {
-      const tr = document.createElement("tr");
-      tr.innerHTML = `
-        <td>${req.id ?? ""}</td>
-        <td data-sort="${req.created_at || req.created || ""}">${req.created_at || req.created || ""}</td>
-        <td data-sort="${req.completed || ""}">${req.completed || "-"}</td>
-        <td>${req.establishment || ""}</td>
-        <td>${req.title || req.theme || ""}</td>
-        <td>${req.description || req.desc || ""}</td>
-        <td>${req.status || ""}</td>
-      `;
-      tbody && tbody.appendChild(tr);
+      const res = await API.getPyrusTasks(selectedRestaurant);
+      if (!res.success) throw new Error("Failed to load tasks");
+
+      const list = res.tasks || [];
+      list.forEach(task => {
+        const tr = document.createElement("tr");
+        const restaurantName = task.restaurant || "";
+        const title = task.title || "";
+        const status = task.status || (task.fields && task.fields["Статус"]) || "";
+        const desc = task.fields ? JSON.stringify(task.fields) : "";
+        tr.innerHTML = `
+          <td>${task.id ?? ""}</td>
+          <td data-sort="">-</td>
+          <td data-sort="">-</td>
+          <td>${restaurantName}</td>
+          <td>${title}</td>
+          <td>${desc}</td>
+          <td>${status}</td>
+        `;
+        tbody && tbody.appendChild(tr);
+      });
+    } catch (e) {
+      console.error("Ошибка загрузки задач:", e);
+      alert("Ошибка загрузки задач: " + e.message);
+    }
+  }
+
+  // начальная загрузка без фильтра
+  loadTasks();
+
+  const dropdown = document.getElementById("main-dropdown");
+  if (dropdown) {
+    dropdown.addEventListener("change", () => {
+      const selectedOption = dropdown.options[dropdown.selectedIndex];
+      const name = selectedOption ? selectedOption.textContent : "";
+      loadTasks(name === "Выберите заведение" ? "" : name);
     });
-  } catch (e) {
-    console.error("Ошибка загрузки заявок:", e);
-    alert("Ошибка загрузки заявок: " + e.message);
+  }
+
+  const filterSelect = document.getElementById("filter-establishment");
+  if (filterSelect) {
+    filterSelect.addEventListener("change", () => {
+      const name = filterSelect.value;
+      loadTasks(name);
+    });
   }
 
   /* ==================== ДАШБОРД (GRAFANA) ==================== */

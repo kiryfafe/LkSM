@@ -28,6 +28,7 @@ $db_user = isset($_ENV['DB_USER']) ? $_ENV['DB_USER'] : null;
 $db_pass = isset($_ENV['DB_PASS']) ? $_ENV['DB_PASS'] : null;
 $grafana_url = isset($_ENV['GRAFANA_URL']) ? $_ENV['GRAFANA_URL'] : null;
 $grafana_token = isset($_ENV['GRAFANA_TOKEN']) ? $_ENV['GRAFANA_TOKEN'] : null;
+$pyrus_token = isset($_ENV['PYRUS_TOKEN']) ? $_ENV['PYRUS_TOKEN'] : null;
 
 if (!$db_host || !$db_name || !$db_user || $db_pass === null || !$grafana_url || !$grafana_token) {
     // Более безопасно, чем просто ошибка, но в реальном приложении нужна логика обработки
@@ -42,6 +43,7 @@ define('DB_USER', $db_user);
 define('DB_PASS', $db_pass);
 define('GRAFANA_URL', $grafana_url);
 define('GRAFANA_TOKEN', $grafana_token);
+define('PYRUS_TOKEN', $pyrus_token);
 
 /**
  * Создает PDO с явной установкой UTF-8/utf8mb4, чтобы кириллица не искажалась.
@@ -64,6 +66,91 @@ function createPdoUtf8()
     $pdo->exec("SET CHARACTER SET utf8mb4");
     $pdo->exec("SET collation_connection = 'utf8mb4_unicode_ci'");
     return $pdo;
+}
+
+/**
+ * Выполняет запрос к Pyrus API. Требует PYRUS_TOKEN в .env.
+ */
+function pyrusRequest($method, $path, $body = null)
+{
+    if (!PYRUS_TOKEN) {
+        throw new Exception("Missing PYRUS_TOKEN");
+    }
+
+    $url = 'https://api.pyrus.com/v4' . $path;
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, strtoupper($method));
+    curl_setopt($ch, CURLOPT_HTTPHEADER, [
+        'Authorization: Bearer ' . PYRUS_TOKEN,
+        'Content-Type: application/json'
+    ]);
+
+    if ($body !== null) {
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body, JSON_UNESCAPED_UNICODE));
+    }
+
+    $response = curl_exec($ch);
+    if ($response === false) {
+        throw new Exception("Pyrus request error: " . curl_error($ch));
+    }
+    $status = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+
+    $data = json_decode($response, true);
+    if ($status >= 400) {
+        $message = is_array($data) && isset($data["error"]) ? $data["error"] : "HTTP $status";
+        throw new Exception("Pyrus error: " . $message);
+    }
+    return $data;
+}
+
+/**
+ * Возвращает register-данные формы Pyrus.
+ */
+function pyrusFetchRegister($formId)
+{
+    return pyrusRequest('GET', '/forms/' . $formId . '/register');
+}
+
+/**
+ * Строит карту column_name => column_id по структуре register.
+ */
+function pyrusBuildColumnMap(array $register)
+{
+    $map = [];
+    if (!empty($register['columns'])) {
+        foreach ($register['columns'] as $col) {
+            if (isset($col['name'], $col['id'])) {
+                $map[$col['name']] = $col['id'];
+            }
+        }
+    }
+    return $map;
+}
+
+/**
+ * Преобразует одну строку register в ассоциативный массив "Название столбца" => значение.
+ */
+function pyrusRowToAssoc(array $row, array $columnMap)
+{
+    $assoc = [];
+    if (empty($row['cells'])) {
+        return $assoc;
+    }
+    foreach ($row['cells'] as $cell) {
+        $colId = $cell['column_id'] ?? null;
+        $value = $cell['value'] ?? null;
+        if ($colId === null) {
+            continue;
+        }
+        $name = array_search($colId, $columnMap, true);
+        if ($name === false) {
+            continue;
+        }
+        $assoc[$name] = $value;
+    }
+    return $assoc;
 }
 
 // Явно устанавливаем внутреннюю кодировку PHP, если доступно расширение mbstring.
