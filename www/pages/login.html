@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Вход в личный кабинет</title>
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/registr.css">
+</head>
+<body>
+  <div class="register-container">
+    <h2>Вход</h2>
+    <input id="login-identifier" type="text" placeholder="Email или телефон" required>
+    <input id="login-password" type="password" placeholder="Пароль" required>
+    <button id="login-btn" class="btn-Save">Войти</button>
+    <p id="login-success" class="msg-success" style="display:none;">Успешный вход!</p>
+    <p id="login-error" class="msg-error" style="display:none;">Ошибка входа!</p>
+    <p class="login-link">
+      Нет аккаунта? <a href="register.html">Зарегистрироваться</a>
+    </p>
+  </div>
+  <script src="../js/api.js"></script>
+  <script src="../js/auth.js"></script>
+  <script>
+    const btn = document.getElementById("login-btn");
+    const msgSuccess = document.getElementById("login-success");
+    const msgError = document.getElementById("login-error");
+
+    btn.addEventListener("click", async () => {
+      const identifier = document.getElementById("login-identifier").value.trim();
+      const password = document.getElementById("login-password").value.trim();
+
+      const ok = await Auth.login(identifier, password);
+      if (ok) {
+        msgSuccess.style.display = "block";
+        msgError.style.display = "none";
+        setTimeout(() => window.location.href = "../index.html", 1000);
+      } else {
+        msgError.style.display = "block";
+        msgSuccess.style.display = "none";
+      }
+    });
+  </script>
+</body>
+</html>
