@@ -77,8 +77,26 @@ if (!password_verify($password, $user["password_hash"])) {
 }
 
 // ==================== СОЗДАНИЕ СЕССИИ ====================
+// Генерация случайного токена с поддержкой старых версий PHP
+function generate_secure_token($length = 32) {
+    // Современный способ, если доступен
+    if (function_exists('random_bytes')) {
+        return bin2hex(random_bytes($length));
+    }
+    // Fallback для старых версий PHP
+    if (function_exists('openssl_random_pseudo_bytes')) {
+        $strong = false;
+        $bytes = openssl_random_pseudo_bytes($length, $strong);
+        if ($bytes !== false && $strong) {
+            return bin2hex($bytes);
+        }
+    }
+    // Самый простой (менее безопасный, но рабочий) резервный вариант
+    return bin2hex(md5(uniqid(mt_rand(), true), true));
+}
+
 try {
-    $token = bin2hex(random_bytes(32));
+    $token = generate_secure_token(32);
     $expires_at = date("Y-m-d H:i:s", strtotime("+1 day"));
 
     $stmt = $pdo->prepare("
