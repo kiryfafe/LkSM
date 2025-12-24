@@ -2,42 +2,44 @@ const API = {
   async makeRequest(url, options = {}) {
     try {
       const res = await fetch(url, options);
-      
-      // Проверяем Content-Type перед парсингом JSON
-      const contentType = res.headers.get("content-type");
-      if (!contentType || !contentType.includes("application/json")) {
-        const text = await res.text();
-        console.error("Non-JSON response:", text);
-        return { 
-          success: false, 
-          error: `Server error (${res.status}): ${text.substring(0, 100)}` 
+      const contentType = (res.headers.get("content-type") || "").toLowerCase();
+      const raw = await res.text();
+
+      // Если сервер вернул не JSON
+      if (!contentType.includes("application/json")) {
+        console.error("Non-JSON response:", raw);
+        return {
+          success: false,
+          error: `Server error (${res.status}): ${raw.substring(0, 200)}`
         };
       }
-      
-      const text = await res.text();
-      if (!text || text.trim() === "") {
-        return { 
-          success: false, 
-          error: `Empty response from server (${res.status})` 
+
+      if (!raw.trim()) {
+        return {
+          success: false,
+          error: `Empty response from server (${res.status})`
         };
       }
-      
-      let data;
+
+      let parsed;
       try {
-        data = JSON.parse(text);
+        parsed = JSON.parse(raw);
       } catch (parseError) {
-        console.error("JSON parse error:", parseError, "Response text:", text);
-        return { 
-          success: false, 
-          error: `Invalid JSON response: ${text.substring(0, 200)}` 
+        console.error("JSON parse error:", parseError, "Response text:", raw);
+        return {
+          success: false,
+          error: `Invalid JSON response: ${raw.substring(0, 200)}`
         };
       }
-      
+
       if (!res.ok) {
-        // Если сервер вернул JSON с ошибкой, используем его
-        return { success: false, error: data.error || `HTTP error! status: ${res.status}` };
+        return {
+          success: false,
+          error: parsed.error || `HTTP error! status: ${res.status}`
+        };
       }
-      return data;
+
+      return parsed;
     } catch (e) {
       console.error("API error:", e);
       return { success: false, error: e.message || "Network error" };
