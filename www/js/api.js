@@ -2,7 +2,37 @@ const API = {
   async makeRequest(url, options = {}) {
     try {
       const res = await fetch(url, options);
-      const data = await res.json();
+      
+      // Проверяем Content-Type перед парсингом JSON
+      const contentType = res.headers.get("content-type");
+      if (!contentType || !contentType.includes("application/json")) {
+        const text = await res.text();
+        console.error("Non-JSON response:", text);
+        return { 
+          success: false, 
+          error: `Server error (${res.status}): ${text.substring(0, 100)}` 
+        };
+      }
+      
+      const text = await res.text();
+      if (!text || text.trim() === "") {
+        return { 
+          success: false, 
+          error: `Empty response from server (${res.status})` 
+        };
+      }
+      
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (parseError) {
+        console.error("JSON parse error:", parseError, "Response text:", text);
+        return { 
+          success: false, 
+          error: `Invalid JSON response: ${text.substring(0, 200)}` 
+        };
+      }
+      
       if (!res.ok) {
         // Если сервер вернул JSON с ошибкой, используем его
         return { success: false, error: data.error || `HTTP error! status: ${res.status}` };

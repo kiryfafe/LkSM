@@ -1,6 +1,30 @@
 <?php
-require_once __DIR__ . '/../config.php';
+// Включаем обработку ошибок для JSON ответов
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+
+// Устанавливаем заголовок JSON сразу
 header("Content-Type: application/json; charset=utf-8");
+
+// Обработчик фатальных ошибок
+register_shutdown_function(function() {
+    $error = error_get_last();
+    if ($error !== NULL && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        http_response_code(500);
+        echo json_encode([
+            "success" => false, 
+            "error" => "PHP Error: " . $error['message'] . " in " . $error['file'] . ":" . $error['line']
+        ]);
+    }
+});
+
+try {
+    require_once __DIR__ . '/../config.php';
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(["success" => false, "error" => "Config error: " . $e->getMessage()]);
+    exit;
+}
 
 try {
     $pdo = createPdoUtf8();
@@ -11,7 +35,20 @@ try {
 }
 
 // ==================== ЧТЕНИЕ ЗАПРОСА ОТ ФРОНТА ====================
-$input = json_decode(file_get_contents("php://input"), true);
+$rawInput = file_get_contents("php://input");
+if (empty($rawInput)) {
+    http_response_code(400);
+    echo json_encode(["success" => false, "error" => "Empty request body"]);
+    exit;
+}
+
+$input = json_decode($rawInput, true);
+if (json_last_error() !== JSON_ERROR_NONE) {
+    http_response_code(400);
+    echo json_encode(["success" => false, "error" => "Invalid JSON: " . json_last_error_msg()]);
+    exit;
+}
+
 $identifier = trim($input["identifier"] ?? "");
 $password   = trim($input["password"] ?? "");
 
@@ -22,13 +59,19 @@ if (!$identifier || !$password) {
 }
 
 // ==================== ПОИСК ПОЛЬЗОВАТЕЛЯ ====================
-$stmt = $pdo->prepare("
-    SELECT * FROM users 
-    WHERE email = :identifier OR phone = :identifier 
-    LIMIT 1
-");
-$stmt->execute([":identifier" => $identifier]);
-$user = $stmt->fetch(PDO::FETCH_ASSOC);
+try {
+    $stmt = $pdo->prepare("
+        SELECT * FROM users 
+        WHERE email = :identifier OR phone = :identifier 
+        LIMIT 1
+    ");
+    $stmt->execute([":identifier" => $identifier]);
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(["success" => false, "error" => "Database query error: " . $e->getMessage()]);
+    exit;
+}
 
 if (!$user) {
     http_response_code(401);
