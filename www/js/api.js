@@ -106,4 +106,5 @@ const API = {
     });
   }
 };
-window.API = API; // <-- Эта строка делает API глобальным
+
+window.API = API;
