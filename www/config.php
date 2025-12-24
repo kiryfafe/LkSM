@@ -29,6 +29,8 @@ $db_pass = isset($_ENV['DB_PASS']) ? $_ENV['DB_PASS'] : null;
 $grafana_url = isset($_ENV['GRAFANA_URL']) ? $_ENV['GRAFANA_URL'] : null;
 $grafana_token = isset($_ENV['GRAFANA_TOKEN']) ? $_ENV['GRAFANA_TOKEN'] : null;
 $pyrus_token = isset($_ENV['PYRUS_TOKEN']) ? $_ENV['PYRUS_TOKEN'] : null;
+$pyrus_login = isset($_ENV['PYRUS_LOGIN']) ? $_ENV['PYRUS_LOGIN'] : null;
+$pyrus_security_key = isset($_ENV['PYRUS_SECURITY_KEY']) ? $_ENV['PYRUS_SECURITY_KEY'] : null;
 
 if (!$db_host || !$db_name || !$db_user || $db_pass === null || !$grafana_url || !$grafana_token) {
     // Более безопасно, чем просто ошибка, но в реальном приложении нужна логика обработки
@@ -44,6 +46,8 @@ define('DB_PASS', $db_pass);
 define('GRAFANA_URL', $grafana_url);
 define('GRAFANA_TOKEN', $grafana_token);
 define('PYRUS_TOKEN', $pyrus_token);
+define('PYRUS_LOGIN', $pyrus_login);
+define('PYRUS_SECURITY_KEY', $pyrus_security_key);
 
 /**
  * Создает PDO с явной установкой UTF-8/utf8mb4, чтобы кириллица не искажалась.
@@ -73,8 +77,36 @@ function createPdoUtf8()
  */
 function pyrusRequest($method, $path, $body = null)
 {
-    if (!PYRUS_TOKEN) {
-        throw new Exception("Missing PYRUS_TOKEN");
+    // 1) Если заранее выдан готовый токен, используем его
+    $token = PYRUS_TOKEN;
+
+    // 2) Если токена нет, но есть login + security_key — получаем токен через /auth
+    if (!$token) {
+        if (!PYRUS_LOGIN || !PYRUS_SECURITY_KEY) {
+            throw new Exception("Missing PYRUS_TOKEN or PYRUS_LOGIN/PYRUS_SECURITY_KEY");
+        }
+
+        $authCh = curl_init('https://api.pyrus.com/v4/auth');
+        curl_setopt($authCh, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($authCh, CURLOPT_POST, true);
+        curl_setopt($authCh, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
+        curl_setopt($authCh, CURLOPT_POSTFIELDS, json_encode([
+            'login' => PYRUS_LOGIN,
+            'security_key' => PYRUS_SECURITY_KEY,
+        ], JSON_UNESCAPED_UNICODE));
+
+        $authResp = curl_exec($authCh);
+        if ($authResp === false) {
+            throw new Exception("Pyrus auth error: " . curl_error($authCh));
+        }
+        $authStatus = curl_getinfo($authCh, CURLINFO_HTTP_CODE);
+        curl_close($authCh);
+
+        $authData = json_decode($authResp, true);
+        if ($authStatus >= 400 || !is_array($authData) || empty($authData['access_token'])) {
+            throw new Exception("Pyrus auth failed: HTTP $authStatus");
+        }
+        $token = $authData['access_token'];
     }
 
     $url = 'https://api.pyrus.com/v4' . $path;
@@ -82,7 +114,7 @@ function pyrusRequest($method, $path, $body = null)
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
     curl_setopt($ch, CURLOPT_CUSTOMREQUEST, strtoupper($method));
     curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . PYRUS_TOKEN,
+        'Authorization: Bearer ' . $token,
         'Content-Type: application/json'
     ]);
 
