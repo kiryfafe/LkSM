@@ -2,13 +2,15 @@ const API = {
   async makeRequest(url, options = {}) {
     try {
       const res = await fetch(url, options);
+      const data = await res.json();
       if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
+        // Если сервер вернул JSON с ошибкой, используем его
+        return { success: false, error: data.error || `HTTP error! status: ${res.status}` };
       }
-      return await res.json();
+      return data;
     } catch (e) {
       console.error("API error:", e);
-      return { success: false, error: "Network error" };
+      return { success: false, error: e.message || "Network error" };
     }
   },
   // ==================== АВТОРИЗАЦИЯ ====================

@@ -44,20 +44,26 @@ if (!password_verify($password, $user["password_hash"])) {
 }
 
 // ==================== СОЗДАНИЕ СЕССИИ ====================
-$token = bin2hex(random_bytes(32));
-$expires_at = date("Y-m-d H:i:s", strtotime("+1 day"));
+try {
+    $token = bin2hex(random_bytes(32));
+    $expires_at = date("Y-m-d H:i:s", strtotime("+1 day"));
 
-$stmt = $pdo->prepare("
-    INSERT INTO user_sessions (user_id, token, ip_address, user_agent, created_at, expires_at)
-    VALUES (:user_id, :token, :ip, :ua, NOW(), :expires)
-");
-$stmt->execute([
-    ":user_id" => $user["id"],
-    ":token"   => $token,
-    ":ip"      => $_SERVER["REMOTE_ADDR"] ?? null,
-    ":ua"      => $_SERVER["HTTP_USER_AGENT"] ?? null,
-    ":expires" => $expires_at
-]);
+    $stmt = $pdo->prepare("
+        INSERT INTO user_sessions (user_id, token, ip_address, user_agent, created_at, expires_at)
+        VALUES (:user_id, :token, :ip, :ua, NOW(), :expires)
+    ");
+    $stmt->execute([
+        ":user_id" => $user["id"],
+        ":token"   => $token,
+        ":ip"      => $_SERVER["REMOTE_ADDR"] ?? null,
+        ":ua"      => $_SERVER["HTTP_USER_AGENT"] ?? null,
+        ":expires" => $expires_at
+    ]);
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode(["success" => false, "error" => "Failed to create session"]);
+    exit;
+}
 
 // ==================== ВОЗВРАТ ДАННЫХ ====================
 echo json_encode([

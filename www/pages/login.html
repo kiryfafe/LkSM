@@ -26,18 +26,47 @@
     const msgSuccess = document.getElementById("login-success");
     const msgError = document.getElementById("login-error");
 
-    btn.addEventListener("click", async () => {
+    async function performLogin() {
       const identifier = document.getElementById("login-identifier").value.trim();
       const password = document.getElementById("login-password").value.trim();
 
-      const ok = await Auth.login(identifier, password);
-      if (ok) {
-        msgSuccess.style.display = "block";
-        msgError.style.display = "none";
-        setTimeout(() => window.location.href = "../index.html", 1000);
-      } else {
+      if (!identifier || !password) {
+        msgError.textContent = "Заполните все поля";
         msgError.style.display = "block";
         msgSuccess.style.display = "none";
+        return;
+      }
+
+      // Скрываем предыдущие сообщения
+      msgSuccess.style.display = "none";
+      msgError.style.display = "none";
+
+      try {
+        const ok = await Auth.login(identifier, password);
+        if (ok) {
+          msgSuccess.textContent = "Успешный вход!";
+          msgSuccess.style.display = "block";
+          msgError.style.display = "none";
+          setTimeout(() => window.location.href = "../index.html", 1000);
+        } else {
+          msgError.textContent = "Неверный email/телефон или пароль";
+          msgError.style.display = "block";
+          msgSuccess.style.display = "none";
+        }
+      } catch (e) {
+        console.error("Login error:", e);
+        msgError.textContent = "Ошибка входа: " + (e.message || "Неизвестная ошибка");
+        msgError.style.display = "block";
+        msgSuccess.style.display = "none";
+      }
+    }
+
+    btn.addEventListener("click", performLogin);
+    
+    // Обработка Enter
+    document.getElementById("login-password").addEventListener("keypress", (e) => {
+      if (e.key === "Enter") {
+        performLogin();
       }
     });
   </script>

@@ -3,12 +3,23 @@ const Auth = {
   KEY_TOKEN: "auth_token",
 
   async login(identifier, password) {
-    if (!identifier || !password) return false;
+    if (!identifier || !password) {
+      console.error("Login: missing credentials");
+      return false;
+    }
 
     try {
       const res = await API.loginUser({ identifier, password });
 
-      if (!res || !res.success) return false;
+      if (!res || !res.success) {
+        console.error("Login failed:", res?.error || "Unknown error");
+        return false;
+      }
+
+      if (!res.user || !res.token) {
+        console.error("Login: missing user data or token");
+        return false;
+      }
 
       localStorage.setItem(this.KEY_USER, JSON.stringify(res.user));
       localStorage.setItem(this.KEY_TOKEN, res.token);
