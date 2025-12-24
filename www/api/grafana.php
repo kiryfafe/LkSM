@@ -12,7 +12,7 @@ $grafanaToken = GRAFANA_TOKEN;
 
 // --- ПРОВЕРКА ТОКЕНА ПОЛЬЗОВАТЕЛЯ ---
 $headers = getallheaders();
-$authHeader = $headers["Authorization"] ?? "";
+$authHeader = isset($headers["Authorization"]) ? $headers["Authorization"] : "";
 if (!preg_match("/Bearer\s+(.*)$/i", $authHeader, $matches)) {
     http_response_code(401);
     echo "Unauthorized (no token)";
@@ -37,7 +37,7 @@ try {
 }
 
 // --- ЧТЕНИЕ И ВАЛИДАЦИЯ ПАРАМЕТРА PATH ---
-$requestedPath = $_GET["path"] ?? "/";
+$requestedPath = isset($_GET["path"]) ? $_GET["path"] : "/";
 // Пример простой валидации: разрешаем только пути, начинающиеся с /d/ (для дашбордов) или /api/
 // Это НЕ полное решение, нужно адаптировать под конкретные нужды
 $allowedPrefixes = ['/d/', '/api/'];

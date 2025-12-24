@@ -47,7 +47,7 @@ try {
 }
 
 $columnMap = pyrusBuildColumnMap($register);
-$restaurantColId = $columnMap['Ресторан'] ?? null;
+$restaurantColId = isset($columnMap['Ресторан']) ? $columnMap['Ресторан'] : null;
 if (!$restaurantColId) {
     http_response_code(500);
     echo json_encode(["success" => false, "error" => "Pyrus: column 'Ресторан' not found"]);
@@ -73,7 +73,7 @@ if (empty($allowedNames)) {
 }
 
 $restaurants = [];
-$rows = $register['rows'] ?? [];
+$rows = isset($register['rows']) ? $register['rows'] : array();
 foreach ($rows as $row) {
     $assoc = pyrusRowToAssoc($row, $columnMap);
     $name = isset($assoc['Ресторан']) ? trim($assoc['Ресторан']) : '';
@@ -81,11 +81,19 @@ foreach ($rows as $row) {
         continue;
     }
     foreach ($allowedNames as $needle) {
-        if (strcasecmp($needle, $name) === 0) {
-            $restaurants[] = [
-                "id" => $row['id'] ?? ($row['task_id'] ?? uniqid('rest_')),
+        if (strcasecmp($needle, $name) == 0) {
+            $id = null;
+            if (isset($row['id'])) {
+                $id = $row['id'];
+            } elseif (isset($row['task_id'])) {
+                $id = $row['task_id'];
+            } else {
+                $id = uniqid('rest_');
+            }
+            $restaurants[] = array(
+                "id" => $id,
                 "name" => $name
-            ];
+            );
             // Не break — нужны все строки с совпадающим названием
         }
     }

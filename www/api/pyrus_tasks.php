@@ -49,15 +49,15 @@ try {
 }
 
 $columnMap = pyrusBuildColumnMap($register);
-$restaurantColId = $columnMap['Ресторан'] ?? null;
+$restaurantColId = isset($columnMap['Ресторан']) ? $columnMap['Ресторан'] : null;
 if (!$restaurantColId) {
     http_response_code(500);
     echo json_encode(["success" => false, "error" => "Pyrus: column 'Ресторан' not found"]);
     exit;
 }
 
-$tasks = [];
-$rows = $register['rows'] ?? [];
+$tasks = array();
+$rows = isset($register['rows']) ? $register['rows'] : array();
 foreach ($rows as $row) {
     $assoc = pyrusRowToAssoc($row, $columnMap);
     $name = isset($assoc['Ресторан']) ? trim($assoc['Ресторан']) : '';
@@ -77,13 +77,22 @@ foreach ($rows as $row) {
         }
     }
 
-    $tasks[] = [
-        "id" => $row['id'] ?? ($row['task_id'] ?? uniqid('task_')),
-        "task_id" => $row['task_id'] ?? null,
+    $id = null;
+    if (isset($row['id'])) {
+        $id = $row['id'];
+    } elseif (isset($row['task_id'])) {
+        $id = $row['task_id'];
+    } else {
+        $id = uniqid('task_');
+    }
+
+    $tasks[] = array(
+        "id" => $id,
+        "task_id" => isset($row['task_id']) ? $row['task_id'] : null,
         "restaurant" => $name,
         "title" => $title,
         "fields" => $assoc
-    ];
+    );
 }
 
 echo json_encode(["success" => true, "tasks" => $tasks], JSON_UNESCAPED_UNICODE);
