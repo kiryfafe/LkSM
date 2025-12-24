@@ -171,8 +171,8 @@ function pyrusRowToAssoc(array $row, array $columnMap)
         return $assoc;
     }
     foreach ($row['cells'] as $cell) {
-        $colId = $cell['column_id'] ?? null;
-        $value = $cell['value'] ?? null;
+        $colId = isset($cell['column_id']) ? $cell['column_id'] : null;
+        $value = isset($cell['value']) ? $cell['value'] : null;
         if ($colId === null) {
             continue;
         }
